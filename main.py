@@ -1,20 +1,29 @@
 import requests
+import openai
 
-def get_location_and_name(search_query, api_key):
+chatgpt_api_key = "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"
+google_maps_api_key = "AIzaSyCD_ji6Vc_BS9Z8yytfQxKEZltWYKdCPCE"
+
+def get_chatgpt_response(prompt, api_key):
+    client = openai.OpenAI(api_key=api_key)
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message["content"]
+
+def get_location(search_query, google_maps_api_key):
     base_url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
     params = {
         'query': search_query,
-        'key': api_key
+        'key': google_maps_api_key
     }
     response = requests.get(base_url, params=params)
     results = response.json().get('results', [])
     if results:
-        first_result = results[0]
-        name = first_result['name']
-        location = first_result['geometry']['location']
-        return name, location
+        return results[0]['geometry']['location']
     else:
-        return None, None
+        return None
 
 def calculate_midpoint(locations):
     if not locations:
@@ -23,25 +32,23 @@ def calculate_midpoint(locations):
     total_lng = sum(location['lng'] for location in locations)
     return {'lat': total_lat / len(locations), 'lng': total_lng / len(locations)}
 
-# Google Places API anahtarınızı buraya girin
-api_key = "AIzaSyCD_ji6Vc_BS9Z8yytfQxKEZltWYKdCPCE"
 
-# Arama sorgularınızı burada belirtin
-search_queries = ["Urla Restoran", "Urla Eczane", "Urla Kırtasiye"]
+# Kullanıcıdan gelen metin
+user_input = "Bugün ödevim var ve mukavvam bitmiş, yenisini almam lazım. Biraz da acıktım dışarı çıktığımda iyice acıkacağım. Aynı zamanda ağrı kesicim bitmiş"
 
-# Her arama sorgusu için konumları ve isimleri alın
+# ChatGPT ile ihtiyaçları çözümle
+chatgpt_response = get_chatgpt_response(user_input, chatgpt_api_key)
+print("ChatGPT Çıktısı:", chatgpt_response)
+
+# Google Maps API ile yerleri bul
+search_queries = chatgpt_response.split("\n")  # Her satırı ayrı bir sorgu olarak kabul edin
 locations = []
-names = []
 for query in search_queries:
-    name, location = get_location_and_name(query, api_key)
+    location = get_location(query, google_maps_api_key)
     if location:
         locations.append(location)
-        names.append(name)
 
-# Bulunan yerlerin isimlerini ve ortalama konumu yazdırın
-print("Bulunan Yerler:")
-for name in names:
-    print(name)
-
+# Ortalama konumu hesapla
 midpoint = calculate_midpoint(locations)
-print("\nOrta Nokta Koordinatları:", midpoint)
+print("Orta Nokta Koordinatları:", midpoint)
+
